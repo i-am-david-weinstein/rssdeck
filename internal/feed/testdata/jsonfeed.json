@@ -1,0 +1,27 @@
+{
+  "version": "https://jsonfeed.org/version/1.1",
+  "title": "Micro Posts",
+  "home_page_url": "https://micro.example/",
+  "feed_url": "https://micro.example/feed.json",
+  "authors": [{ "name": "sam", "url": "https://micro.example/about" }],
+  "items": [
+    {
+      "id": "4821",
+      "url": "https://micro.example/4821",
+      "content_text": "A short one.",
+      "date_published": "2026-10-15T18:04:00-04:00"
+    },
+    {
+      "id": "https://micro.example/4815",
+      "url": "https://micro.example/4815",
+      "title": "Titled post",
+      "content_html": "<p>Longer.</p>",
+      "date_published": "2026-10-14T12:00:00Z",
+      "date_modified": "2026-10-16T08:00:00Z"
+    },
+    {
+      "id": "4810",
+      "content_text": "No url on this one."
+    }
+  ]
+}

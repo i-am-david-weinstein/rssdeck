@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<a10:feed xmlns:a10="http://www.w3.org/2005/Atom"
+          xmlns:media="http://search.yahoo.com/mrss/"
+          xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <a10:title>Prefixed Atom</a10:title>
+  <a10:id>https://prefixed.example/feed</a10:id>
+  <a10:updated>2026-10-16T10:00:00Z</a10:updated>
+  <a10:link rel="alternate" href="https://prefixed.example/"/>
+  <a10:entry>
+    <a10:title>Episode 12</a10:title>
+    <a10:id>https://prefixed.example/ep/12</a10:id>
+    <a10:updated>2026-10-16T10:00:00Z</a10:updated>
+    <a10:published>2026-10-16T09:30:00Z</a10:published>
+    <a10:link rel="alternate" href="https://prefixed.example/ep/12"/>
+    <media:content url="https://cdn.prefixed.example/12.mp3" type="audio/mpeg"/>
+    <itunes:duration>31:04</itunes:duration>
+  </a10:entry>
+</a10:feed>

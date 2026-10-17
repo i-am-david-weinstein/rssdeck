@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<rss version="2.0">
+<channel>
+  <title>Department Bulletin</title>
+  <link>/bulletin</link>
+  <description>Internal notices</description>
+  <item>
+    <title>Parking closure</title>
+    <link>/bulletin/parking-closure</link>
+    <pubDate>Tue, 14 Oct 2026 10:00:00 GMT</pubDate>
+  </item>
+  <item>
+    <title>Cafeteria hours</title>
+    <link>cafeteria-hours.html</link>
+    <pubDate>Mon, 13 Oct 2026 10:00:00 GMT</pubDate>
+  </item>
+  <item>
+    <title>Fire drill</title>
+    <link>../announcements/fire-drill</link>
+    <pubDate>Sun, 12 Oct 2026 10:00:00 GMT</pubDate>
+  </item>
+</channel>
+</rss>

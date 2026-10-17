@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom"
+	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+	xmlns:slash="http://purl.org/rss/1.0/modules/slash/">
+<channel>
+	<title>Örjan&#8217;s Notebook</title>
+	<atom:link href="https://notebook.example/feed/" rel="self" type="application/rss+xml" />
+	<link>https://notebook.example</link>
+	<description>Notes &#38; links</description>
+	<lastBuildDate>Thu, 16 Oct 2026 09:12:04 +0000</lastBuildDate>
+	<language>en-US</language>
+	<sy:updatePeriod>hourly</sy:updatePeriod>
+	<generator>https://wordpress.org/?v=6.4.2</generator>
+	<item>
+		<title>What I learned shipping <![CDATA[<em>v2</em>]]></title>
+		<link>https://notebook.example/2026/10/shipping-v2/</link>
+		<comments>https://notebook.example/2026/10/shipping-v2/#comments</comments>
+		<dc:creator><![CDATA[orjan]]></dc:creator>
+		<pubDate>Wed, 15 Oct 2026 14:30:00 +0000</pubDate>
+		<category><![CDATA[Engineering]]></category>
+		<guid isPermaLink="false">https://notebook.example/?p=1482</guid>
+		<description><![CDATA[<p>A retrospective.</p>]]></description>
+		<content:encoded><![CDATA[<p>A retrospective, in full.</p>]]></content:encoded>
+		<slash:comments>4</slash:comments>
+	</item>
+	<item>
+		<title>Weeknotes &#8212; week 41</title>
+		<link>https://notebook.example/2026/10/weeknotes-41/</link>
+		<dc:creator><![CDATA[orjan]]></dc:creator>
+		<pubDate>Mon, 13 Oct 2026 08:00:00 +0000</pubDate>
+		<guid isPermaLink="false">https://notebook.example/?p=1475</guid>
+		<description><![CDATA[Short notes.]]></description>
+	</item>
+</channel>
+</rss>

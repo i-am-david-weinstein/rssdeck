@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rdf:RDF
+  xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns="http://purl.org/rss/1.0/">
+  <channel rdf:about="https://wiki.example/feed.rdf">
+    <title>Wiki Recent Changes</title>
+    <link>https://wiki.example/</link>
+    <description>Edits</description>
+    <items>
+      <rdf:Seq>
+        <rdf:li rdf:resource="https://wiki.example/page/Kettle" />
+        <rdf:li rdf:resource="https://wiki.example/page/Teapot" />
+      </rdf:Seq>
+    </items>
+  </channel>
+  <item rdf:about="https://wiki.example/page/Kettle">
+    <title>Kettle</title>
+    <link>https://wiki.example/page/Kettle</link>
+    <description>Edited by bee</description>
+    <dc:date>2026-10-16T07:14:00Z</dc:date>
+  </item>
+  <item rdf:about="https://wiki.example/page/Teapot">
+    <title>Teapot</title>
+    <link>https://wiki.example/page/Teapot</link>
+    <description>Edited by cat</description>
+    <dc:date>2026-10-15T19:40:00Z</dc:date>
+  </item>
+</rdf:RDF>

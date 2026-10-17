@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<rss version="2.0">
+<channel>
+  <title>Repeater</title>
+  <link>https://repeater.example</link>
+  <description>Serves the same guid more than once</description>
+  <item>
+    <title>First copy</title>
+    <link>https://repeater.example/a</link>
+    <guid>https://repeater.example/a</guid>
+    <pubDate>Wed, 15 Oct 2026 06:00:00 GMT</pubDate>
+  </item>
+  <item>
+    <title>Second copy, same guid</title>
+    <link>https://repeater.example/a?utm_source=rss</link>
+    <guid>https://repeater.example/a</guid>
+    <pubDate>Wed, 15 Oct 2026 06:00:00 GMT</pubDate>
+  </item>
+  <item>
+    <title>Distinct</title>
+    <link>https://repeater.example/b</link>
+    <guid>https://repeater.example/b</guid>
+    <pubDate>Tue, 14 Oct 2026 06:00:00 GMT</pubDate>
+  </item>
+</channel>
+</rss>

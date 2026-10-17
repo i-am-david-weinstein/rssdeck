@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<rss version="2.0">
+<channel>
+  <title>Nothing Fetchable</title>
+  <link>https://unsafe.example</link>
+  <description>Links that must never become bookmarks</description>
+  <item>
+    <title>Script link</title>
+    <link>javascript:void(0)</link>
+    <pubDate>Wed, 15 Oct 2026 06:00:00 GMT</pubDate>
+  </item>
+  <item>
+    <title>Mail link with a urn guid</title>
+    <link>mailto:news@unsafe.example</link>
+    <guid isPermaLink="false">urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6</guid>
+    <pubDate>Tue, 14 Oct 2026 06:00:00 GMT</pubDate>
+  </item>
+  <item>
+    <title>No link, but the guid is a permalink</title>
+    <guid isPermaLink="true">https://unsafe.example/real-post</guid>
+    <pubDate>Mon, 13 Oct 2026 06:00:00 GMT</pubDate>
+  </item>
+  <item>
+    <title>FTP is not fetchable by Readeck</title>
+    <link>ftp://unsafe.example/pub/file.txt</link>
+    <guid>ftp://unsafe.example/pub/file.txt</guid>
+    <pubDate>Sun, 12 Oct 2026 06:00:00 GMT</pubDate>
+  </item>
+</channel>
+</rss>
