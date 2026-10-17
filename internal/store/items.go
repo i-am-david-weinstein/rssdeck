@@ -309,6 +309,26 @@ func (s *Store) PruneTerminalItems(ctx context.Context, feedID int64, pollStarte
 	return n, nil
 }
 
+// RecordSendError records why a send failed without spending one of the item's
+// attempts. It is for failures that are not the item's fault and that no number
+// of retries would fix, which today means Readeck rejecting the token: counting
+// those would permanently fail a perfectly good item because of a
+// misconfiguration. The item stays pending and is retried on the next poll.
+func (s *Store) RecordSendError(ctx context.Context, id int64, cause string) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE items SET last_error = ? WHERE id = ?`, nullString(cause), id)
+	if err != nil {
+		return fmt.Errorf("store: record send error for item %d: %w", id, err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("store: record send error for item %d: %w", id, err)
+	}
+	if n == 0 {
+		return fmt.Errorf("%w: item %d", ErrNotFound, id)
+	}
+	return nil
+}
+
 // ItemFilter narrows and pages GET /api/items. A nil FeedID or Status means no
 // filter on that column.
 type ItemFilter struct {
