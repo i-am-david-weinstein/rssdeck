@@ -1,0 +1,28 @@
+# Compiled binaries
+/rssdeck
+/bin/
+/dist/
+
+# Test and coverage output
+*.test
+coverage.out
+coverage.html
+
+# SQLite databases (including WAL sidecars)
+*.db
+*.db-wal
+*.db-shm
+/data/
+
+# Local environment and secrets
+.env
+.env.*
+
+# Editor and OS cruft
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Claude Code local settings
+.claude/settings.local.json
