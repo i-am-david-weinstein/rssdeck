@@ -861,3 +861,45 @@ func TestGetItemNotFoundAfterDelete(t *testing.T) {
 		t.Errorf("GetItem = %v, want ErrNotFound", err)
 	}
 }
+
+func TestRecordSendErrorLeavesAttemptsAlone(t *testing.T) {
+	ctx := context.Background()
+	s := newStore(t)
+	feed := newFeed(t, s, "https://example.com/feed.xml")
+
+	if _, err := s.IngestItems(ctx, []NewItem{
+		{FeedID: feed.ID, GUID: "guid-1", URL: "https://example.com/one", Status: StatusPending, SeenAt: base},
+	}); err != nil {
+		t.Fatalf("IngestItems: %v", err)
+	}
+	pending, err := s.PendingItems(ctx, feed.ID)
+	if err != nil {
+		t.Fatalf("PendingItems: %v", err)
+	}
+
+	if err := s.RecordSendError(ctx, pending[0].ID, "readeck rejected the token"); err != nil {
+		t.Fatalf("RecordSendError: %v", err)
+	}
+
+	item, err := s.GetItem(ctx, pending[0].ID)
+	if err != nil {
+		t.Fatalf("GetItem: %v", err)
+	}
+	if item.Status != StatusPending {
+		t.Errorf("status = %q, want %q", item.Status, StatusPending)
+	}
+	if item.Attempts != 0 {
+		t.Errorf("attempts = %d, want 0", item.Attempts)
+	}
+	if item.LastError != "readeck rejected the token" {
+		t.Errorf("last error = %q", item.LastError)
+	}
+}
+
+func TestRecordSendErrorUnknownItem(t *testing.T) {
+	s := newStore(t)
+	err := s.RecordSendError(context.Background(), 404, "nope")
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("RecordSendError: %v, want ErrNotFound", err)
+	}
+}
