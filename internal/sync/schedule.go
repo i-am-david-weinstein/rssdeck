@@ -120,6 +120,16 @@ func (s *Syncer) Unschedule(feedID int64) {
 	s.sched.drop(feedID)
 }
 
+// NextPoll reports when a feed is next due, and false when it is not on the
+// calendar at all, which is how a disabled or deleted feed reads. The API
+// reports it as part of a feed's poll status.
+//
+// The time is in memory only: it is re-drawn on every process start, so it is
+// a fact about this run rather than persisted state.
+func (s *Syncer) NextPoll(feedID int64) (time.Time, bool) {
+	return s.sched.nextPoll(feedID)
+}
+
 // scheduleFeed places one feed on the calendar, or removes it when disabled.
 func (s *Syncer) scheduleFeed(f *store.Feed, now time.Time) {
 	if !f.Enabled {

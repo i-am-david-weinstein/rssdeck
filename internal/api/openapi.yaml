@@ -1,0 +1,668 @@
+openapi: 3.1.0
+info:
+  title: rssdeck
+  version: 0.1.0
+  summary: Poll RSS/Atom feeds and send new items to Readeck exactly once.
+  description: |
+    rssdeck's only management surface. Every endpoint under /api is
+    authenticated with `Authorization: Bearer <token>`; /healthz and this
+    document are not.
+
+    Two kinds of token work. The master token comes from the daemon's
+    configuration and can do everything. Minted tokens are created through
+    /api/tokens, can drive feeds and items, and cannot manage tokens.
+
+    Errors are always `{"error": "...", "code": "..."}`. The code is stable and
+    worth branching on; the message is for humans and may be reworded.
+
+    Timestamps are RFC3339 UTC.
+  license:
+    name: MIT
+servers:
+  - url: /
+    description: The running instance.
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: feeds
+    description: Subscriptions and their poll status.
+  - name: items
+    description: Feed entries and their delivery state.
+  - name: tokens
+    description: API tokens. Master token only.
+  - name: service
+    description: Liveness and this document.
+
+paths:
+  /healthz:
+    get:
+      tags: [service]
+      operationId: health
+      summary: Liveness
+      description: |
+        Answers for as long as the process is serving. It deliberately does not
+        check the database or Readeck: a dependency being briefly unavailable is
+        not a reason to kill a daemon whose job is to retry.
+      security: []
+      responses:
+        "200":
+          description: The daemon is serving.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+
+  /api/openapi.yaml:
+    get:
+      tags: [service]
+      operationId: openapiSpec
+      summary: This document
+      description: The spec of the running instance, so a client never has to guess its version.
+      security: []
+      responses:
+        "200":
+          description: The OpenAPI document.
+          content:
+            application/yaml:
+              schema:
+                type: string
+
+  /api/feeds:
+    get:
+      tags: [feeds]
+      operationId: listFeeds
+      summary: List feeds
+      description: Every feed, enabled or not, oldest first. Not paged.
+      responses:
+        "200":
+          description: The subscribed feeds.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [feeds]
+                properties:
+                  feeds:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Feed"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [feeds]
+      operationId: createFeed
+      summary: Add a feed
+      description: |
+        Fetches and parses the feed before storing it, so a URL that is not a
+        feed fails this request rather than a later poll. Nothing is written
+        when it does.
+
+        Everything in the document is recorded as already seen, except the
+        newest `backfill` items, which are sent to Readeck now.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              additionalProperties: false
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  description: An absolute http or https feed URL.
+                  examples: ["https://example.com/feed.xml"]
+                label:
+                  type: [string, "null"]
+                  description: |
+                    Readeck label for this feed's bookmarks. Omitted or null
+                    defaults to the feed's own title, cut to 64 characters; an
+                    empty string means no feed label, leaving only the global one.
+                interval_seconds:
+                  type: [integer, "null"]
+                  minimum: 1
+                  description: Poll interval for this feed. Null follows the global interval.
+                backfill:
+                  type: [integer, "null"]
+                  minimum: 0
+                  description: |
+                    How many of the feed's newest items to send now. Null uses
+                    the configured default, and 0 sends none.
+      responses:
+        "201":
+          description: The feed was added.
+          headers:
+            Location:
+              description: The new feed's URL.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feed"
+        "400":
+          description: |
+            The URL is malformed (`invalid_url`), could not be fetched
+            (`feed_unreachable`), is not a feed (`not_a_feed`), or the body is
+            invalid (`invalid_request`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: That URL is already subscribed (`feed_exists`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "413":
+          $ref: "#/components/responses/TooLarge"
+
+  /api/feeds/{id}:
+    parameters:
+      - $ref: "#/components/parameters/FeedID"
+    get:
+      tags: [feeds]
+      operationId: getFeed
+      summary: Get a feed
+      responses:
+        "200":
+          description: The feed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feed"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/FeedNotFound"
+    patch:
+      tags: [feeds]
+      operationId: updateFeed
+      summary: Update a feed
+      description: |
+        Changes only the fields the body mentions. A change to
+        `interval_seconds` or `enabled` takes effect without a restart and
+        re-draws this feed's poll jitter; a label change leaves the schedule
+        alone.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                label:
+                  type: string
+                  description: An empty string removes this feed's label.
+                interval_seconds:
+                  type: [integer, "null"]
+                  minimum: 1
+                  description: Null clears the override, so the feed follows the global interval.
+                enabled:
+                  type: boolean
+                  description: A disabled feed is not scheduled, but can still be polled on request.
+      responses:
+        "200":
+          description: The updated feed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Feed"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/FeedNotFound"
+        "413":
+          $ref: "#/components/responses/TooLarge"
+    delete:
+      tags: [feeds]
+      operationId: deleteFeed
+      summary: Delete a feed
+      description: |
+        Purges the feed's items too. Re-adding the same URL therefore starts
+        from nothing and will resend.
+      responses:
+        "204":
+          description: The feed is gone.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/FeedNotFound"
+
+  /api/feeds/{id}/poll:
+    parameters:
+      - $ref: "#/components/parameters/FeedID"
+    post:
+      tags: [feeds]
+      operationId: pollFeed
+      summary: Poll a feed now
+      description: |
+        Polls before replying, so the response reports what happened. A disabled
+        feed is polled too: the scheduler leaves it alone, but asking by hand is
+        an operator's decision.
+      responses:
+        "200":
+          description: What the poll did.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PollResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/FeedNotFound"
+        "409":
+          description: |
+            A poll of this feed is already running (`poll_in_progress`).
+            Polling one feed twice at once could send an item twice.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: |
+            The poll could not complete (`poll_failed`): the feed was
+            unreachable or unparseable, or Readeck refused the token. The cause
+            is recorded on the feed, and the next scheduled poll tries again.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/items:
+    get:
+      tags: [items]
+      operationId: listItems
+      summary: List items
+      description: Newest first. `total` counts everything matching the filter, before paging.
+      parameters:
+        - name: feed_id
+          in: query
+          description: Only items of this feed.
+          schema:
+            type: integer
+            minimum: 1
+        - name: status
+          in: query
+          description: Only items in this state.
+          schema:
+            $ref: "#/components/schemas/ItemStatus"
+        - name: limit
+          in: query
+          description: Page size, clamped to 500.
+          schema:
+            type: integer
+            minimum: 0
+            default: 50
+            maximum: 500
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: A page of items.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total, limit, offset]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Item"
+                  total:
+                    type: integer
+                    description: Items matching the filter, before paging.
+                  limit:
+                    type: integer
+                    description: The page size actually used.
+                  offset:
+                    type: integer
+        "400":
+          description: A parameter is invalid (`invalid_request`, `invalid_status`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/tokens:
+    get:
+      tags: [tokens]
+      operationId: listTokens
+      summary: List minted tokens
+      description: Master token only. The master token is configuration, not a row, so it is never listed.
+      responses:
+        "200":
+          description: The minted tokens.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tokens]
+                properties:
+                  tokens:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Token"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MasterOnly"
+    post:
+      tags: [tokens]
+      operationId: createToken
+      summary: Mint a token
+      description: |
+        Master token only. The plaintext is in this response and nowhere else:
+        the database holds only its hash, so a lost token is replaced rather
+        than recovered.
+
+        A minted token can drive feeds and items. It cannot manage tokens, so a
+        leaked agent token can neither mint itself persistence nor revoke yours.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties:
+                name:
+                  type: string
+                  maxLength: 64
+                  description: What this token is for.
+                  examples: ["feed-curator agent"]
+                expires_at:
+                  type: [string, "null"]
+                  format: date-time
+                  description: RFC3339. Null never expires; a time in the past is rejected.
+      responses:
+        "201":
+          description: The new token, with its plaintext.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedToken"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MasterOnly"
+        "413":
+          $ref: "#/components/responses/TooLarge"
+
+  /api/tokens/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Token id.
+        schema:
+          type: integer
+          minimum: 1
+    delete:
+      tags: [tokens]
+      operationId: deleteToken
+      summary: Revoke a token
+      description: Master token only. Takes effect on the token's next request.
+      responses:
+        "204":
+          description: The token is revoked.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/MasterOnly"
+        "404":
+          description: No token with that id (`token_not_found`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: The master token from the daemon's configuration, or a token minted through /api/tokens.
+
+  parameters:
+    FeedID:
+      name: id
+      in: path
+      required: true
+      description: Feed id.
+      schema:
+        type: integer
+        minimum: 1
+
+  responses:
+    Unauthorized:
+      description: |
+        The bearer token is missing, malformed, unknown, revoked or expired
+        (`unauthorized`). Which one it was goes to the daemon's log rather than
+        this response.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    MasterOnly:
+      description: This endpoint requires the master token (`master_token_required`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    FeedNotFound:
+      description: No feed with that id (`feed_not_found`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    InvalidRequest:
+      description: The request body or a parameter is invalid (`invalid_request`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    TooLarge:
+      description: The body is larger than 64KB (`request_too_large`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      type: object
+      required: [error, code]
+      properties:
+        error:
+          type: string
+          description: For humans. May be reworded between versions.
+        code:
+          type: string
+          description: Stable and worth branching on.
+          examples: ["feed_not_found"]
+
+    Feed:
+      type: object
+      required: [id, url, title, label, enabled, interval_seconds, last_polled_at,
+                 last_success_at, next_poll_at, consecutive_failures, created_at]
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+          format: uri
+        title:
+          type: string
+          description: From the feed document, as it read when the feed was added.
+        label:
+          type: string
+          description: Readeck label applied to this feed's bookmarks.
+        enabled:
+          type: boolean
+        interval_seconds:
+          type: [integer, "null"]
+          description: Null means this feed follows the global interval.
+        last_polled_at:
+          type: [string, "null"]
+          format: date-time
+        last_success_at:
+          type: [string, "null"]
+          format: date-time
+          description: The last poll that reached the server and produced a usable answer, including a 304.
+        next_poll_at:
+          type: [string, "null"]
+          format: date-time
+          description: |
+            From the scheduler, which keeps it in memory: it is null for a feed
+            that is not on the calendar, which is how a disabled feed reads, and
+            it is re-drawn on every restart.
+        consecutive_failures:
+          type: integer
+        last_error:
+          type: string
+          description: Why the last poll failed. Absent once a poll succeeds.
+        created_at:
+          type: string
+          format: date-time
+
+    ItemStatus:
+      type: string
+      enum: [pending, sent, failed_permanent, seeded]
+      description: |
+        `pending` is discovered but not yet accepted by Readeck. `sent`,
+        `failed_permanent` and `seeded` are terminal: `seeded` items were
+        already in the feed when it was added and are deliberately never sent.
+
+    Item:
+      type: object
+      required: [id, feed_id, guid, url, title, published_at, status, attempts,
+                 sent_at, first_seen_at, last_seen_in_feed_at]
+      properties:
+        id:
+          type: integer
+        feed_id:
+          type: integer
+        guid:
+          type: string
+          description: |
+            The item's identity within its feed. Identity is per feed, so the
+            same article in two feeds becomes two bookmarks.
+        url:
+          type: string
+          description: What is sent to Readeck. Empty only for an item with nothing fetchable.
+        title:
+          type: string
+        published_at:
+          type: [string, "null"]
+          format: date-time
+        status:
+          $ref: "#/components/schemas/ItemStatus"
+        attempts:
+          type: integer
+          description: Failed sends so far. At the configured maximum the item becomes failed_permanent.
+        last_error:
+          type: string
+          description: Why the last send failed. Absent when nothing has failed.
+        readeck_bookmark_id:
+          type: string
+          description: Readeck's id for the bookmark. Present once the item is sent.
+        sent_at:
+          type: [string, "null"]
+          format: date-time
+        first_seen_at:
+          type: string
+          format: date-time
+        last_seen_in_feed_at:
+          type: string
+          format: date-time
+          description: |
+            When the item last appeared in a fetched document. Retention deletes
+            terminal items that have left the feed.
+
+    PollResult:
+      type: object
+      required: [feed_id, feed_url, not_modified, new, existing, sent, failed, pruned, duration_ms]
+      properties:
+        feed_id:
+          type: integer
+        feed_url:
+          type: string
+          format: uri
+        not_modified:
+          type: boolean
+          description: |
+            The feed server answered 304, so nothing was parsed or pruned.
+            Pending items are still sent on such a poll.
+        new:
+          type: integer
+          description: Items the feed served that rssdeck had no row for.
+        existing:
+          type: integer
+          description: Items already known, and so never sent again.
+        sent:
+          type: integer
+        failed:
+          type: integer
+          description: Sends that did not succeed, counting both retries and give-ups.
+        pruned:
+          type: integer
+          description: Rows deleted because the feed no longer carries them.
+        duration_ms:
+          type: integer
+
+    Token:
+      type: object
+      required: [id, name, prefix, expires_at, last_used_at, created_at]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        prefix:
+          type: string
+          description: The token's first 8 characters, which is how a row is matched to a token in use.
+        expires_at:
+          type: [string, "null"]
+          format: date-time
+          description: Null never expires.
+        last_used_at:
+          type: [string, "null"]
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    CreatedToken:
+      allOf:
+        - $ref: "#/components/schemas/Token"
+        - type: object
+          required: [token]
+          properties:
+            token:
+              type: string
+              description: The plaintext, returned here and never again.
