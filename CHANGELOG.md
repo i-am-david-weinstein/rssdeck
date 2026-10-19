@@ -11,7 +11,7 @@ Nothing yet.
 
 ## v0.1.0 - 2026-10-18
 
-First release. Running against a real Readeck instance on a VPS.
+First release.
 
 ### Added
 
