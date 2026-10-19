@@ -226,13 +226,10 @@ func (c *Config) Validate() error {
 	if c.ReadeckToken == "" {
 		errs = append(errs, errors.New("config: no Readeck token; set RSSDECK_READECK_TOKEN or RSSDECK_READECK_TOKEN_FILE"))
 	}
-	switch {
-	case c.ReadeckURL == "":
+	if c.ReadeckURL == "" {
 		errs = append(errs, errors.New("config: no Readeck URL; set RSSDECK_READECK_URL or -readeck-url"))
-	default:
-		if err := validateReadeckURL(c.ReadeckURL); err != nil {
-			errs = append(errs, err)
-		}
+	} else if err := validateReadeckURL(c.ReadeckURL); err != nil {
+		errs = append(errs, err)
 	}
 	if c.PollInterval <= 0 {
 		errs = append(errs, fmt.Errorf("config: poll interval %s must be positive", c.PollInterval))
@@ -458,7 +455,7 @@ func ParseSize(raw string) (int64, error) {
 		return 0, fmt.Errorf("%q is not a size such as 10MB or 10485760", raw)
 	}
 
-	var unit float64 = 1
+	var unit float64
 	switch suffix {
 	case "", "b":
 		unit = 1

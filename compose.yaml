@@ -1,0 +1,49 @@
+# A single container and a single named volume. Copy this, set the two tokens
+# and the Readeck URL, and `docker compose up -d`.
+#
+# The volume is named rather than a bind mount on purpose: the image runs as UID
+# 65532, and a named volume inherits the image's ownership of /data, so the
+# permissions edge never hits the happy path. If you would rather see the
+# database on the host, bind-mount it and chown the directory to 65532:65532
+# first. The README has the command.
+
+services:
+  rssdeck:
+    image: ghcr.io/i-am-david-weinstein/rssdeck:latest
+    container_name: rssdeck
+    restart: unless-stopped
+    ports:
+      # The API is the only management surface and it is always authenticated,
+      # but it speaks plain HTTP. Publishing it on localhost keeps it off the
+      # network until you have put a reverse proxy with TLS in front.
+      - "127.0.0.1:8080:8080"
+    environment:
+      # Required. Generate with `openssl rand -hex 32`.
+      RSSDECK_API_TOKEN: ${RSSDECK_API_TOKEN:?set RSSDECK_API_TOKEN in .env}
+      # Required. Your Readeck instance, reachable from inside this container:
+      # a service name on a shared Docker network, or a host URL.
+      RSSDECK_READECK_URL: ${RSSDECK_READECK_URL:?set RSSDECK_READECK_URL in .env}
+      # Required. A Readeck API token with bookmark write access.
+      RSSDECK_READECK_TOKEN: ${RSSDECK_READECK_TOKEN:?set RSSDECK_READECK_TOKEN in .env}
+      # Everything below has a default and is here to be edited.
+      RSSDECK_POLL_INTERVAL: 15m
+      RSSDECK_GLOBAL_LABEL: rssdeck
+      RSSDECK_LOG_LEVEL: info
+      RSSDECK_LOG_FORMAT: text
+    volumes:
+      - rssdeck-data:/data
+    # The image declares its own HEALTHCHECK, so there is nothing to configure
+    # here. `docker compose ps` shows the result.
+
+    # If Readeck runs in Docker on this host, put both on one network and set
+    # RSSDECK_READECK_URL to http://readeck:8000. Uncomment, and add the same
+    # network to the Readeck service.
+    # networks:
+    #   - readeck
+
+volumes:
+  rssdeck-data:
+
+# networks:
+#   readeck:
+#     external: true

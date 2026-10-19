@@ -30,9 +30,12 @@ func main() {
 	// terminal. Both mean the same thing here, and the second one kills the
 	// process outright: an operator who asks twice is not asking politely.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
-	defer stop()
 
 	err := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
+	// Called rather than deferred: the failure path below ends in os.Exit,
+	// which does not run defers, so a deferred stop would never release the
+	// signal handler.
+	stop()
 	switch {
 	case err == nil:
 	case errors.Is(err, flag.ErrHelp):

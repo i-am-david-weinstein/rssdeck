@@ -1,0 +1,55 @@
+# golangci-lint v2. The default linter set plus a handful that catch the
+# mistakes this codebase can actually make: unchecked errors, resources left
+# open, context dropped on the floor.
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    # errcheck is in the standard set; these are the additions.
+    - bodyclose      # an undrained HTTP response body leaks a connection, and this daemon makes one request per feed per poll, forever
+    - contextcheck   # a poll that ignores the shutdown context never finishes draining
+    - copyloopvar
+    - errorlint      # == on errors instead of errors.Is breaks the moment something wraps
+    - gocritic
+    - misspell
+    - nilerr
+    - noctx          # an HTTP request without a context cannot be cancelled or timed out
+    - revive
+    - sqlclosecheck  # rows left open hold the single SQLite connection this process has
+    - unconvert
+    - usestdlibvars
+    - wastedassign
+
+  settings:
+    errcheck:
+      # Deliberate discards are written as `_ =` and mean it. A deferred Close
+      # on a read, or a drain into io.Discard before exit, has nothing useful to
+      # report and no place to report it to.
+      check-blank: false
+    revive:
+      rules:
+        - name: exported
+          # Everything outside cmd/ is in internal/, so exported comments are
+          # for the humans reading the package, not for pkg.go.dev. The rest of
+          # revive's defaults still apply.
+          disabled: true
+
+  exclusions:
+    presets:
+      - comments
+      - std-error-handling
+    rules:
+      # Tests reach for the shapes production code should not: a fixture that
+      # ignores an error on purpose, a long table, a duplicated helper.
+      - path: _test\.go$
+        linters:
+          - bodyclose
+          - errcheck
+          - gocritic
+          - noctx
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

@@ -139,7 +139,7 @@ func normalizeURL(raw string) (string, error) {
 	}
 	parsed, err := url.Parse(trimmed)
 	if err != nil {
-		return "", fmt.Errorf("%w: %s", ErrInvalidURL, err)
+		return "", fmt.Errorf("%w: %w", ErrInvalidURL, err)
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return "", fmt.Errorf("%w: %s must be http or https", ErrInvalidURL, trimmed)

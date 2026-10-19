@@ -61,7 +61,9 @@ func (s *Store) applyMigrations(ctx context.Context, migrations []migration, cur
 	if err != nil {
 		return fmt.Errorf("store: begin migration: %w", err)
 	}
-	defer tx.Rollback()
+	// After a successful commit this returns ErrTxDone, which is the normal
+	// path and not worth reporting.
+	defer func() { _ = tx.Rollback() }()
 
 	for _, m := range pending {
 		if _, err := tx.ExecContext(ctx, m.sql); err != nil {

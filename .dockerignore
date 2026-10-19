@@ -1,0 +1,16 @@
+# The build needs the Go sources and nothing else. Keeping the context small
+# keeps it fast and keeps a stray local file out of the image.
+.git
+.github
+.gitignore
+.dockerignore
+.goreleaser.yaml
+.golangci.yml
+Dockerfile
+compose.yaml
+dist
+*.db
+*.db-wal
+*.db-shm
+*.md
+LICENSE

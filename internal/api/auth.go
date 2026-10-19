@@ -16,9 +16,10 @@ import (
 type principalKind int
 
 const (
-	// kindAnonymous is a request to a public route, or one that has not been
-	// authenticated yet.
-	kindAnonymous principalKind = iota
+	// The zero value is a request to a public route, or one that has not been
+	// authenticated yet. It has no name because nothing branches on it: every
+	// route that reads a principal has already required a credential.
+	_ principalKind = iota
 	// kindMaster is the token from the configuration.
 	kindMaster
 	// kindMinted is a token created through the API.
