@@ -1,0 +1,91 @@
+# A vX.Y.Z tag publishes two things: a multi-arch image to GHCR, and the
+# binaries attached to the GitHub release.
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+jobs:
+  # The tag gets the same gate main does. A tag pushed to a commit CI never saw,
+  # or pushed while CI was still running, should not ship.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: go build ./...
+      - run: go vet ./...
+      - env:
+          CGO_ENABLED: 1
+        run: go test -race ./...
+
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Pushing to GHCR needs this; the default token is otherwise read-only.
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # vX.Y.Z, X.Y and latest. No bare X tag: v0 would mean "any 0.x", and
+      # before 1.0 those are allowed to break each other.
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern=v{{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  binaries:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      # GoReleaser creates the release and uploads the archives to it.
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # GoReleaser reads the tag history to build the changelog, and a
+          # shallow clone does not have it.
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

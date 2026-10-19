@@ -1,0 +1,62 @@
+# GoReleaser builds the loose binaries attached to each GitHub release, for
+# people not running Docker. The container image is built by the release
+# workflow with buildx, not here: one Dockerfile, used by CI and by anyone who
+# clones the repo, beats a second image definition that only CI exercises.
+version: 2
+
+project_name: rssdeck
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: rssdeck
+    main: ./cmd/rssdeck
+    binary: rssdeck
+    env:
+      # Pure-Go SQLite, so every target cross-compiles from the runner with no
+      # C toolchain.
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      # .Tag, not .Version: .Version strips the leading v, and the image stamps
+      # the tag verbatim. `rssdeck version` should say v0.1.0 whichever way the
+      # binary arrived.
+      - -s -w -X main.version={{.Tag}}
+
+archives:
+  - formats: [tar.gz]
+    # rssdeck_0.1.0_linux_amd64.tar.gz, rather than GoReleaser's default
+    # Linux_x86_64 spelling, which does not match what the goarch is called
+    # anywhere else in this project.
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    # No `files` list, so GoReleaser's default applies: LICENSE, README and
+    # CHANGELOG if they exist. An explicit list has to match, which means a
+    # renamed doc fails the release instead of shipping without it. compose.yaml
+    # is deliberately not in here: someone who downloaded a tarball is not the
+    # person running the container.
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  # The tag's release notes come from CHANGELOG.md, which is written by hand.
+  # The generated commit list goes under it for anyone who wants the detail.
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"
+
+release:
+  # v0.x is pre-1.0, not pre-release. Marking it draft would mean a tag push
+  # does not actually publish anything until someone clicks a button.
+  draft: false
+  prerelease: auto

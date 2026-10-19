@@ -1,0 +1,73 @@
+# Build, vet, test and lint on every push and every pull request. This is the
+# gate on main; the release workflow assumes a tag that already passed it.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to a branch cancels the first one's run. Nobody needs the
+# results for a commit that has already been replaced.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          # Read the version from go.mod rather than pinning it twice.
+          go-version-file: go.mod
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      # -race catches the scheduler racing the API over the same store, which
+      # is the kind of bug that otherwise shows up as a corrupt database at 3am.
+      # CGO_ENABLED=1 is required for the race detector, and only here: the
+      # shipped binary is built with it off.
+      - name: Test
+        env:
+          CGO_ENABLED: 1
+        run: go test -race ./...
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.15.0
+
+  # The Dockerfile is part of what ships, so a change that breaks it should fail
+  # the PR rather than the release. Build both architectures, push nothing.
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

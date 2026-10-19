@@ -226,6 +226,6 @@ func excerpt(body io.Reader) string {
 
 // closeBody drains what is left so the connection can be reused, then closes it.
 func closeBody(resp *http.Response) {
-	io.Copy(io.Discard, io.LimitReader(resp.Body, errorBodyLimit))
-	resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, errorBodyLimit))
+	_ = resp.Body.Close()
 }

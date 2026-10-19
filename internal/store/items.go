@@ -132,7 +132,9 @@ func (s *Store) IngestItems(ctx context.Context, items []NewItem) (IngestResult,
 	if err != nil {
 		return result, fmt.Errorf("store: begin ingest: %w", err)
 	}
-	defer tx.Rollback()
+	// After a successful commit this returns ErrTxDone, which is the normal
+	// path and not worth reporting.
+	defer func() { _ = tx.Rollback() }()
 
 	// Refreshing an existing row and inserting a new one are two statements
 	// rather than one upsert, because the result of the UPDATE is an unambiguous

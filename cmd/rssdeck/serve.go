@@ -109,7 +109,8 @@ func serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	// Listening before the scheduler starts means a port already in use fails
 	// the boot, rather than leaving a daemon that polls feeds and answers
 	// nobody.
-	listener, err := net.Listen("tcp", cfg.Addr)
+	var listenCfg net.ListenConfig
+	listener, err := listenCfg.Listen(ctx, "tcp", cfg.Addr)
 	if err != nil {
 		return fmt.Errorf("listen on %s: %w", cfg.Addr, err)
 	}
@@ -192,8 +193,13 @@ func runUntilSignal(
 		if err := server.Shutdown(drainCtx); err != nil {
 			log.Warn("the api did not drain cleanly", "error", err)
 		}
-		// Shutdown makes Serve return, which is what this waits for.
-		<-serving
+		// Shutdown makes Serve return, which is what this waits for. A clean
+		// drain reports ErrServerClosed and means nothing; anything else is
+		// worth a line, but not worth failing a shutdown that is already
+		// underway.
+		if err := <-serving; err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Warn("the api did not stop cleanly", "error", err)
+		}
 	}
 
 	log.Info("stopped")
