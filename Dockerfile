@@ -28,6 +28,11 @@ ARG TARGETARCH
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/rssdeck ./cmd/rssdeck
 
+# An empty /data owned by the runtime user, to be copied into the final stage.
+# It has to be made here: distroless has no shell, so the final stage cannot
+# mkdir or chown anything.
+RUN mkdir -p /data
+
 FROM gcr.io/distroless/static:nonroot
 
 # CA certificates come with the base image, and HTTPS feeds need them.
@@ -36,6 +41,13 @@ COPY --from=build /out/rssdeck /rssdeck
 # The SQLite file and its WAL live here. Declaring it means `docker run` without
 # a -v still survives a restart, rather than silently re-sending every item
 # from an empty database.
+#
+# The directory is copied in already owned by 65532 rather than left to VOLUME,
+# which would create it root-owned: a fresh named volume inherits the image's
+# ownership of its mount point, so without this the nonroot process cannot open
+# its own database. This is what makes `docker run -v rssdeck-data:/data` work
+# with no chown.
+COPY --from=build --chown=65532:65532 /data /data
 VOLUME /data
 
 EXPOSE 8080
