@@ -7,7 +7,11 @@ that 0.x releases are allowed to break each other.
 
 ## Unreleased
 
-Everything below is v0.1.0, which has not been tagged yet.
+Nothing yet.
+
+## v0.1.0 - 2026-10-18
+
+First release. Running against a real Readeck instance on a VPS.
 
 ### Added
 
